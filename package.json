@@ -1,0 +1,27 @@
+{
+  "name": "medblocks",
+  "version": "0.0.1",
+  "description": "Javascript implementation of medblocks encryption and storage",
+  "main": "medblocks.js",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "karma start karma.conf.js",
+    "build": "webpack"
+  },
+  "author": "sidharthramesh",
+  "license": "ISC",
+  "dependencies": {
+    "karma-jasmine": "^3.1.1",
+    "karma-spec-reporter": "0.0.32",
+    "webpack": "^4.41.6",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3"
+  },
+  "devDependencies": {
+    "karma": "^4.4.1",
+    "karma-chrome-launcher": "^3.1.0"
+  }
+}
