@@ -5,8 +5,43 @@ class MedBlocks {
             openpgp.config.commentstring = "medblocks.org"
             openpgp.config.versionstring = "Medblocks v1"
             this.medblocksUrl = medblocksUrl
-            this.blobdb = new PouchDB("data")
-            this._blobrephandler = this.blobdb.replicate.to(new PouchDB(`http://${this.medblocksUrl}:5984/data`), {live:true, retry:true})
+            this.blob = new PouchDB("data")
+            
+            this._blob_replicator = this.blob.replicate.to(new PouchDB(
+                `http://${this.medblocksUrl}:5984/data`), {live:true, retry:true}
+                ).on('paused', function(err){
+                    return err
+                }).on('denied', function(err){
+                    console.log("blobdatabase denied")
+                    console.log(err)
+                    // Make request to create db
+                }).on('error', function(err){
+                    console.log(err)
+                })
+            this.tx = new PouchDB("tx")
+            this._tx_replicator = this.tx.replicate.to(new PouchDB(
+                `http://${this.medblocksUrl}:5984/tx`), {live:true, retry:true}
+                ).on('paused', function(err){
+                    return err
+                }).on('denied', function(err){
+                    console.log("tx denied")
+                    console.log(err)
+                    // Make request to create db
+                }).on('error', function(err){
+                    console.log(err)
+                })
+            this.activity = new PouchDB("activity")
+            this._activity_replicator = this.activity.replicate.to(new PouchDB(
+                `http://${this.medblocksUrl}:5984/activity`), {live:true, retry:true}
+                ).on('paused', function(err){
+                    return err
+                }).on('denied', function(err){
+                    console.log("activity denied")
+                    console.log(err)
+                    // Make request to create db
+                }).on('error', function(err){
+                    console.log(err)
+                })
             //catch errors to create new data db
             this.keyring = new openpgp.Keyring()
             await this.keyring.load();
@@ -39,10 +74,7 @@ class MedBlocks {
                 curve: 'ed25519'
             }
         )
-        return {
-            privateKey : privateKeyArmored,
-            revocationCertificate: revocationCertificate
-        }
+        return privateKeyArmored
     }
     async exportKey(email){
         return this.keyring.privateKeys.getForAddress(email)[0].armor()
@@ -53,22 +85,40 @@ class MedBlocks {
         await this.keyring.privateKeys.importKey(privateKey)
         await this.keyring.publicKeys.importKey(publicKey)
         await this.keyring.store()
+        return publicKey
+    }
+    async getEmailFromKey(key){
+        return (await openpgp.key.readArmored(key)).keys[0].users[0].userId.email
+    }
+    async registerPrivateKey(privateKey){
+        var publicKey = await this.importKey(privateKey)
+
+        this.activity.post(
+            {
+                "type": "register",
+                "email": this.getEmailFromKey(privateKey),
+                "host": this.medblocksUrl,
+                "publickey": publicKey,
+                "time": new Date().getTime()
+            }
+        )
+        return privateKey
     }
     async register(email){
-        var keys = await this.generateKey(email)
-        //TODO Send revocation cert somewhere safe if key is lost
-        await this.importKey(keys.privateKey)
-        // var hkp = new openpgp.HKP('https://pgp.mit.edu'); // Change to medblocks server later
-        // await hkp.upload(keys.publicKey);
-        return keys
+        var privateKey = await this.generateKey(email)
+        privateKey = await this.registerPrivateKey(privateKey)
+        return privateKey
     }
 
     login(email){
         this.email = email
-        this.db = new PouchDB("hex"+openpgp.util.str_to_hex(email))
-        this._dbreplicationhandler = this.db.replicate.to(new PouchDB(`http://${this.medblocksUrl}:5984/${this.db.name}`), {live:true, retry:true})
-        //Catch error when cannot create db
-        //Send request to create new remote DB
+        this.activity.post({
+            "type": "login",
+            "email": email,
+            "host": this.medblocksUrl,
+            "publickey": this.publicKey.armor(),
+            "time": new Date().getTime()
+        })
     }
 
     logout() {
@@ -104,8 +154,8 @@ class MedBlocks {
             privateKeys: [this.privateKey]
         })
 
-        //Add file to blobdb
-        this.blobdb.put(
+        //Add file to blob
+        this.blob.put(
             {
                 "_id": hash,
                 "_attachments": {
@@ -117,7 +167,7 @@ class MedBlocks {
             })
         
         // Add permission to db
-        this.db.put({
+        this.tx.put({
             "_id": openpgp.util.Uint8Array_to_hex(await openpgp.crypto.hash.sha256(openpgp.util.str_to_Uint8Array(accessKey))),
             "hash": hash,
             "type": "permission",

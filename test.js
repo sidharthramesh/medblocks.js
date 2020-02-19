@@ -14,14 +14,14 @@ describe('Registration and Login Functions', function() {
     
     it('should generate keys', async function() {
         key = await api.generateKey("testemail@test.com")
-        expect(key.privateKey).toContain("-----BEGIN PGP PRIVATE")
+        expect(key).toContain("-----BEGIN PGP PRIVATE")
     })
 
     
     it('should register user and login', async function() {
-        var keys = await api.register("test@test.com")
+        var key = await api.register("test@test.com")
         api.login("test@test.com")
-        expect(api.privateKey.armor()).toEqual(keys.privateKey)
+        expect(api.privateKey.armor()).toEqual(key)
         // expect(api.privateKey.user)
     })
 
@@ -31,7 +31,7 @@ describe('Registration and Login Functions', function() {
     })
 
     it('should logout user', async function(){
-        var keys = await api.register("test@test.com")
+        var key = await api.register("test@test.com")
         api.login("test@test.com")
         expect(api.privateKey.armor()).toBeDefined()
         api.logout("test@test.com")
