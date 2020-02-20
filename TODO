@@ -1,10 +1,6 @@
 Open PGP.js Session Keys
 https://github.com/openpgpjs/openpgpjs/blob/master/test/general/openpgp.js#L1156
 
-PouchDB offline first database
- - User database <--> CouchDB
- - Data as attachments ---> CouchDB (mark next version as uploaded: true) ---> S3 object datastore
-
-Offline form apps
-
-- Decouple Storing and Reading Keys from Medblocks - Alter Keyring
+- Gracefully handle offline state instead of spamming poll
+- Reflect offline/online state in online: true
+- Implment GET from S3
