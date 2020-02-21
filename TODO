@@ -3,4 +3,10 @@ https://github.com/openpgpjs/openpgpjs/blob/master/test/general/openpgp.js#L1156
 
 - Gracefully handle offline state instead of spamming poll
 - Reflect offline/online state in online: true
-- Implment GET from S3
+- Test GET from S3
+- Test for :
+    add
+    get
+    list
+
+- Handle types in add and get

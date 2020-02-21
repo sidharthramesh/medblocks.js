@@ -244,15 +244,22 @@ class MedBlocks {
             }
         }
         var accessKey = result.docs[0]["key"]
-        var blob = await api.blob.getAttachment(hash, "file").catch(
-            function(err) {
+        var bytes = await api.blob.getAttachment(hash, "file")
+        .then(
+            blob=>new Uint8Array(blob.arrayBuffer())
+        )
+        .catch(
+            (err) => {
                 if (err.status == 404) {
                     //Implement s3 object storage
-                    throw "s3 search not yet implemented"
+                    var url = `http://${this.medblocksUrl}:9000/blob/${hash}`
+                    return fetch(url).then(r=>r.body).then(stream=>stream.getReader().read()).then(read=>read.value)
+                }
+                else {
+                    throw err
                 }
             }
         )
-        var type = blob.type
         var sessionKeyData = await openpgp.decrypt(
             {
                 message: await openpgp.message.readArmored(accessKey),
@@ -260,18 +267,15 @@ class MedBlocks {
                 format: "binary"
             }
         )
-        var decoded = await openpgp.message.read(new Uint8Array(await blob.arrayBuffer()))
-        if (type!=="text"){
-            type = "binary"
-        }
+        // Figure out format and type
         var message = await openpgp.decrypt(
             {
-                message: decoded,
+                message: await openpgp.message.read(bytes),
                 sessionKeys: {
                     data: sessionKeyData.data,
                     algorithm: 'aes256',
                 },
-                format: type
+                format: "text"
             }
         )
         return message.data
