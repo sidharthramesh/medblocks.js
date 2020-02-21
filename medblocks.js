@@ -246,7 +246,7 @@ class MedBlocks {
         var accessKey = result.docs[0]["key"]
         var bytes = await api.blob.getAttachment(hash, "file")
         .then(
-            blob=>new Uint8Array(blob.arrayBuffer())
+            async blob=>new Uint8Array(await blob.arrayBuffer())
         )
         .catch(
             (err) => {
