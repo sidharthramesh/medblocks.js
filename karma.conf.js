@@ -12,7 +12,10 @@ module.exports = function(config) {
   
       // list of files / patterns to load in the browser
       files: [
-        "dist/*.js",
+        "dist/openpgp.js",
+        "dist/pouchdb.min.js",
+        "dist/pouchdb.find.js",
+        
         "medblocks.js",
         "test.js",
       ],

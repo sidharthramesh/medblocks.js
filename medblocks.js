@@ -1,5 +1,5 @@
 class MedBlocks {
-    constructor(medblocksUrl="localhost", replicate=true){
+    constructor(medblocksUrl="localhost", replicate=false){
         return (async () => {
             openpgp.config.commentstring = "medblocks.org"
             openpgp.config.versionstring = "Medblocks v1"
@@ -12,9 +12,12 @@ class MedBlocks {
             this.tx = new PouchDB("tx")
             this.activity = new PouchDB("activity")
             // Create remote database objects
-            this.remoteBlob = new PouchDB(`http://${this.medblocksUrl}:5984/data`)
-            this.remoteTx = new PouchDB(`http://${this.medblocksUrl}:5984/tx`)
-            this.remoteActivity = new PouchDB(`http://${this.medblocksUrl}:5984/activity`)
+            if (replicate){
+                this.remoteBlob = new PouchDB(`http://${this.medblocksUrl}:5984/data`)
+                this.remoteTx = new PouchDB(`http://${this.medblocksUrl}:5984/tx`)
+                this.remoteActivity = new PouchDB(`http://${this.medblocksUrl}:5984/activity`)
+            }
+            
             //Create indexes for faster query locally
             this.tx.createIndex(
                 {
@@ -133,15 +136,15 @@ class MedBlocks {
 
     async registerPrivateKey(privateKey){
         var publicKey = await this.importKey(privateKey)
-
+        var data = {
+            "type": "register",
+            "email": await this.getEmailFromKey(privateKey),
+            "host": this.medblocksUrl,
+            "publickey": publicKey,
+            "time": new Date().getTime()
+        }
         this.activity.post(
-            {
-                "type": "register",
-                "email": this.getEmailFromKey(privateKey),
-                "host": this.medblocksUrl,
-                "publickey": publicKey,
-                "time": new Date().getTime()
-            }
+            data
         )
         return privateKey
     }
@@ -233,15 +236,15 @@ class MedBlocks {
 
     async get(hash) {
         // Try local database
+        
         var selector = {
             selector:{
                 hash:hash, 
                 type:"permission",
-                to:"tornadoalert@gmail.com"
+                to:this.user
             }
         }
         var result = await this.tx.find(selector)
-        
         if (result.docs.length == 0){
             //Search remote db
             result = await this.remoteTx.find(selector)
@@ -290,11 +293,16 @@ class MedBlocks {
     async list(email) {
         var selector = {
             selector:{
-                to:"tornadoalert@gmail.com",
+                to:email,
                 type:"permission"
             }
         }
-        var result = await this.remoteTx.find(selector)
+        if (this.remoteTx){
+            var result = await this.remoteTx.find(selector)
+        }
+        else {
+            var result = await this.tx.find(selector)
+        }
         return result.docs.map((doc)=>doc.hash)
     }
 

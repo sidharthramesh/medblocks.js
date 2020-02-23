@@ -38,18 +38,44 @@ describe('Registration and Login Functions', function() {
         expect(function(){console.log(api.privateKey.armor())}).toThrow()
         expect(api.email).toBeNull
     })
+    afterEach(function(){
+        sessionStorage.clear()
+        localStorage.clear()
+        indexedDB.deleteDatabase("_pouch_tx")
+        indexedDB.deleteDatabase("_pouch_data")
+        indexedDB.deleteDatabase("_pouch_activity")
+    })
 })
 
 describe("Add and get functions", function(){
     beforeEach(async function(){
-        api = await new MedBlocks(replicate=false)
-        api.keyring.clear()
-        api.register("testuser@test.com")
-        api.login("testuser@test.com")
+        api = await new MedBlocks()
+        await api.keyring.clear()
+        await api.register("testuser@test.com")
+        await api.login("testuser@test.com")
     })
 
-    it('should add string', async function(){
+    it('should add string and get it back', async function(){
         hash = await api.add("Hello world!")
-        console.log(hash)
+        result = await api.get(hash)
+        expect(result).toEqual("Hello world!")
+    }
+    )
+    it('should list added documents', async function() {
+        doc1 = await api.add("Document1")
+        doc2 = await api.add("Document2")
+        list = await api.list("testuser@test.com")
+        result = new Set([])
+        for (var i=0; i<list.length; i++) {
+            result.add(await api.get(list[i]))
+        }
+        expect(result).toEqual(new Set(["Document1","Document2"]))
+    })
+    afterEach(function() {
+        sessionStorage.clear()
+        localStorage.clear()
+        indexedDB.deleteDatabase("_pouch_tx")
+        indexedDB.deleteDatabase("_pouch_data")
+        indexedDB.deleteDatabase("_pouch_activity")
     })
 })

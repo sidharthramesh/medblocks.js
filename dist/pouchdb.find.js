@@ -2114,10 +2114,10 @@ function isRemote(db) {
   }
   /* istanbul ignore next */
   if (typeof db.type === 'function') {
-    guardedConsole('warn',
-      'db.type() is deprecated and will be removed in ' +
-      'a future version of PouchDB');
-    return db.type() === 'http';
+    // guardedConsole('warn',
+    //   'db.type() is deprecated and will be removed in ' +
+    //   'a future version of PouchDB');
+    // return db.type() === 'http';
   }
   /* istanbul ignore next */
   return false;
