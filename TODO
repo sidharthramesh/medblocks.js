@@ -2,11 +2,10 @@ Open PGP.js Session Keys
 https://github.com/openpgpjs/openpgpjs/blob/master/test/general/openpgp.js#L1156
 
 - Gracefully handle offline state instead of spamming poll
-- Reflect offline/online state in online: true
 - Test GET from S3
-- Test for :
-    add
-    get
-    list
+- Handle bytes type in add and get
 
-- Handle types in add and get
+ Issues:
+ Happens with randomized code '4321'
+    - https://github.com/openpgpjs/openpgpjs/issues/752
+    - https://github.com/openpgpjs/openpgpjs/issues/429

@@ -1,6 +1,15 @@
+const jasmineSeedReporter = require("./seedreporter.js")
+
 module.exports = function(config) {
     config.set({
-  
+      client: {
+        jasmine: {
+          random: true,
+          seed: '48978',
+          timeoutInterval: 1000
+        }
+      },
+
       // base path that will be used to resolve all patterns (eg. files, exclude)
       basePath: '',
   
@@ -15,7 +24,6 @@ module.exports = function(config) {
         "dist/openpgp.js",
         "dist/pouchdb.min.js",
         "dist/pouchdb.find.js",
-        
         "medblocks.js",
         "test.js",
       ],
@@ -36,8 +44,14 @@ module.exports = function(config) {
       // test results reporter to use
       // possible values: 'dots', 'progress'
       // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-      reporters: ['spec'],
-  
+      plugins: [
+        "karma-*",
+        jasmineSeedReporter
+      ],
+    
+      reporters: ['spec', "jasmine-seed"],
+
+    
   
       // web server port
       port: 9876,
@@ -67,7 +81,7 @@ module.exports = function(config) {
   
       // Concurrency level
       // how many browser should be started simultaneous
-      concurrency: Infinity
+      concurrency: 1
     })
   }
   

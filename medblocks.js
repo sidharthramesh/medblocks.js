@@ -247,7 +247,9 @@ class MedBlocks {
         var result = await this.tx.find(selector)
         if (result.docs.length == 0){
             //Search remote db
-            result = await this.remoteTx.find(selector)
+            if (this.remoteTx){
+                result = await this.remoteTx.find(selector)
+            }
             if (result.docs.length == 0) {
                 throw new Error("No permission key found for user")
             }
@@ -308,7 +310,7 @@ class MedBlocks {
 
 
     async permit(hash, to) {
-
+        
     }
 
     

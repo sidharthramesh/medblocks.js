@@ -1,4 +1,3 @@
-
 describe('Runtime basics', function() {
     
     it('should have webcrypto', async function(){
@@ -38,16 +37,16 @@ describe('Registration and Login Functions', function() {
         expect(function(){console.log(api.privateKey.armor())}).toThrow()
         expect(api.email).toBeNull
     })
-    afterEach(function(){
+    afterEach( async function(){
         sessionStorage.clear()
         localStorage.clear()
-        indexedDB.deleteDatabase("_pouch_tx")
-        indexedDB.deleteDatabase("_pouch_data")
-        indexedDB.deleteDatabase("_pouch_activity")
+        dbs = (await indexedDB.databases()).map(db=>db.name)
+        for (var i; i<dbs.length; i++){
+            indexedDB.deleteDatabase(dbs[i])}
     })
 })
 
-describe("Add and get functions", function(){
+describe("Medblocks core: add, get, list", function(){
     beforeEach(async function(){
         api = await new MedBlocks()
         await api.keyring.clear()
@@ -71,11 +70,39 @@ describe("Add and get functions", function(){
         }
         expect(result).toEqual(new Set(["Document1","Document2"]))
     })
-    afterEach(function() {
+    
+    afterEach(async function(){
         sessionStorage.clear()
         localStorage.clear()
-        indexedDB.deleteDatabase("_pouch_tx")
-        indexedDB.deleteDatabase("_pouch_data")
-        indexedDB.deleteDatabase("_pouch_activity")
+        dbs = (await indexedDB.databases()).map(db=>db.name)
+        for (var i; i<dbs.length; i++){
+            indexedDB.deleteDatabase(dbs[i])}
+    })
+})
+
+describe('Medblocks core: permit', function(){
+    beforeEach(async function(){
+        api = await new MedBlocks()
+        await api.register("user1@test.com")
+        await api.register("user2@test.com")
+    })
+    it('should block access to user without permission',async function(){
+        await api.login("user1@test.com")
+        documentHash = await api.add("Top secret document")
+        api.login("user2@test.com")
+        try {
+            await api.get(documentHash)
+        } catch (error) {
+            errorMessage = error.message;
+        }
+        expect(errorMessage).toBe('No permission key found for user')
+        
+    })
+    afterEach(async function(){
+        sessionStorage.clear()
+        localStorage.clear()
+        dbs = (await indexedDB.databases()).map(db=>db.name)
+        for (var i; i<dbs.length; i++){
+            indexedDB.deleteDatabase(dbs[i])}
     })
 })
