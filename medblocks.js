@@ -172,6 +172,14 @@ class MedBlocks {
         this.email = undefined
     }
 
+    async encryptSessionKey(sessionKey, publicKey) {
+        var accessKey = await openpgp.encrypt({
+            message: openpgp.message.fromBinary(sessionKey),
+            publicKeys: [publicKey],
+            privateKeys: [this.privateKey]
+        })
+        return accessKey
+    }
     async add(data, type) {
         var email = this.user
         //encrypt
@@ -202,16 +210,12 @@ class MedBlocks {
         var bytesArray = encrypted.message.packets.write()
         var hash = openpgp.util.Uint8Array_to_hex(await openpgp.crypto.hash.sha256(bytesArray))
         
-        var accessKey = await openpgp.encrypt({
-            message: openpgp.message.fromBinary(aes_key),
-            publicKeys: [this.publicKey],
-            privateKeys: [this.privateKey]
-        })
+        var accessKey = await this.encryptSessionKey(aes_key, this.publicKey)
 
         //Add file to blob
         var dataView = new DataView(bytesArray.buffer)
         var blob = new Blob([dataView],{type: type})
-        this.blob.put(
+        await this.blob.put(
             {
                 "_id": hash,
                 "_attachments": {
@@ -223,7 +227,7 @@ class MedBlocks {
             })
         
         // Add permission to db
-        this.tx.put({
+        await this.tx.put({
             "_id": await this.calculateStringHash(accessKey.data),
             "hash": hash,
             "type": "permission",
@@ -233,10 +237,7 @@ class MedBlocks {
     
         return hash
     }
-
-    async get(hash) {
-        // Try local database
-        
+    async getAccessKey(hash) {
         var selector = {
             selector:{
                 hash:hash, 
@@ -254,7 +255,9 @@ class MedBlocks {
                 throw new Error("No permission key found for user")
             }
         }
-        var accessKey = result.docs[0]["key"]
+        return result.docs[0]["key"]
+    }
+    async getBlob(hash){
         var bytes = await api.blob.getAttachment(hash, "file")
         .then(
             async blob=>new Uint8Array(await blob.arrayBuffer())
@@ -271,6 +274,9 @@ class MedBlocks {
                 }
             }
         )
+        return bytes
+    }
+    async decryptAccessKey(accessKey){
         var sessionKeyData = await openpgp.decrypt(
             {
                 message: await openpgp.message.readArmored(accessKey),
@@ -278,12 +284,20 @@ class MedBlocks {
                 format: "binary"
             }
         )
+        return sessionKeyData.data
+            
+    }
+    async get(hash) {
+        // Try local database
+        var accessKey = await this.getAccessKey(hash)
+        var bytes = await this.getBlob(hash)
+        var sessionKey = await this.decryptAccessKey(accessKey)
         // Figure out format and type
         var message = await openpgp.decrypt(
             {
                 message: await openpgp.message.read(bytes),
                 sessionKeys: {
-                    data: sessionKeyData.data,
+                    data: sessionKey,
                     algorithm: 'aes256',
                 },
                 format: "text"
@@ -310,7 +324,23 @@ class MedBlocks {
 
 
     async permit(hash, to) {
+        accessKey = await this.getAccessKey(hash)
+        sessionKey = await this.decryptAccessKey(accessKey)
         
+        //TODO Search for public key from email
+        //TODO Convert armored publicKey to key object 
+        throw new Error("Not implemented fully")
+        var publickey
+        encryptedKey = await this.encryptSessionKey(sessionKey, publickey)
+        var id = await this.calculateStringHash(encryptedKey.data)
+        await this.tx.put({
+            "_id": id,
+            "hash": hash,
+            "type": "permission",
+            "to": to,
+            "key": encryptedKey.data
+        })
+        return id
     }
 
     
