@@ -39,3 +39,17 @@ describe('Registration and Login Functions', function() {
         expect(api.email).toBeNull
     })
 })
+
+describe("Add and get functions", function(){
+    beforeEach(async function(){
+        api = await new MedBlocks(replicate=false)
+        api.keyring.clear()
+        api.register("testuser@test.com")
+        api.login("testuser@test.com")
+    })
+
+    it('should add string', async function(){
+        hash = await api.add("Hello world!")
+        console.log(hash)
+    })
+})

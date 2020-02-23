@@ -1,22 +1,21 @@
 class MedBlocks {
-    constructor(medblocksUrl="localhost"){
+    constructor(medblocksUrl="localhost", replicate=true){
         return (async () => {
             openpgp.config.commentstring = "medblocks.org"
             openpgp.config.versionstring = "Medblocks v1"
             this.medblocksUrl = medblocksUrl
+            // Initialize Keyring
+            this.keyring = new openpgp.Keyring()
+            await this.keyring.load();
+            // Create local PouchDB database objects 
             this.blob = new PouchDB("data")
-            this.remoteBlob = new PouchDB(`http://${this.medblocksUrl}:5984/data`)
-            this._blob_replicator = this.blob.replicate.to(this.remoteBlob, {live:true, retry:true}
-                ).on('paused', function(err){
-                    return err
-                }).on('denied', function(err){  
-                    console.log("blobdatabase denied")
-                    console.log(err)
-                    // Make request to create db
-                }).on('error', function(err){
-                    console.log('replication error')
-                })
             this.tx = new PouchDB("tx")
+            this.activity = new PouchDB("activity")
+            // Create remote database objects
+            this.remoteBlob = new PouchDB(`http://${this.medblocksUrl}:5984/data`)
+            this.remoteTx = new PouchDB(`http://${this.medblocksUrl}:5984/tx`)
+            this.remoteActivity = new PouchDB(`http://${this.medblocksUrl}:5984/activity`)
+            //Create indexes for faster query locally
             this.tx.createIndex(
                 {
                     index:{
@@ -42,39 +41,46 @@ class MedBlocks {
                     },
                 }
             )
-            this.remoteTx = new PouchDB(`http://${this.medblocksUrl}:5984/tx`)
-            this._tx_replicator = this.tx.replicate.to(this.remoteTx, {live:true, retry:true}
-                ).on('paused', function(err){
-                    return err
-                }).on('denied', function(err){
-                    console.log("tx denied")
-                    console.log(err)
-                    // Make request to create db
-                }).on('error', function(err){
-                    console.log('replication error')
-                })
-            await this.tx.createIndex({
+            
+            this.tx.createIndex({
                 index: {
                     fields: ["hash","type","to"]
                 }
             })
-            this.activity = new PouchDB("activity")
-            this.remoteActivity = new PouchDB(`http://${this.medblocksUrl}:5984/activity`)
-            this._activity_replicator = this.activity.replicate.to(this.remoteActivity, {live:true, retry:true}
-                ).on('paused', function(err){
-                    return err
-                }).on('denied', function(err){
-                    console.log("activity denied")
-                    console.log(err)
-                    // Make request to create db
-                }).on('error', function(err){
-                    console.log('replication error')
-                })
-            //catch errors to create new data db
-            this.keyring = new openpgp.Keyring()
-            await this.keyring.load();
-            this.medblocksUrl = medblocksUrl
-            return this; // when done
+            // Set up remote replications
+            if (replicate){
+                this._tx_replicator = this.tx.replicate.to(this.remoteTx, {live:true, retry:true}
+                    ).on('paused', function(err){
+                        return err
+                    }).on('denied', function(err){
+                        console.log("tx denied")
+                        console.log(err)
+                        // Make request to create db
+                    }).on('error', function(err){
+                        console.log('replication error')
+                    })
+                this._activity_replicator = this.activity.replicate.to(this.remoteActivity, {live:true, retry:true}
+                    ).on('paused', function(err){
+                        return err
+                    }).on('denied', function(err){
+                        console.log("activity denied")
+                        console.log(err)
+                        // Make request to create db
+                    }).on('error', function(err){
+                        console.log('replication error')
+                    })
+                this._blob_replicator = this.blob.replicate.to(this.remoteBlob, {live:true, retry:true}
+                    ).on('paused', function(err){
+                        return err
+                    }).on('denied', function(err){  
+                        console.log("blobdatabase denied")
+                        console.log(err)
+                        // Make request to create db
+                    }).on('error', function(err){
+                        console.log('replication error')
+                    })
+            }
+            return this
         })();
     }
 
