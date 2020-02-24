@@ -12,15 +12,15 @@ describe('Registration and Login Functions', function() {
     })
     
     it('should generate keys', async function() {
-        key = await api.generateKey("testemail@test.com")
-        expect(key).toContain("-----BEGIN PGP PRIVATE")
+        var key = await api.generateKey("testemail@test.com")
+        expect(key.privateKeyArmored).toContain("-----BEGIN PGP PRIVATE")
     })
 
     
     it('should register user and login', async function() {
         var key = await api.register("test@test.com")
         api.login("test@test.com")
-        expect(api.privateKey.armor()).toEqual(key)
+        expect(api.privateKey.armor()).toEqual(key.privateKeyArmored)
         // expect(api.privateKey.user)
     })
 
@@ -97,6 +97,18 @@ describe('Medblocks core: permit', function(){
         }
         expect(errorMessage).toBe('No permission key found for user')
         
+    })
+    it('should allow access after permit', async function() {
+        await api.login("user1@test.com")
+        documentHash = await api.add("Top secret document")
+        await api.permit(documentHash, "user2@test.com")
+        api.login("user2@test.com")
+        try {
+            result = await api.get(documentHash)
+        } catch (error) {
+            errorMessage = error.message;
+        }
+        expect(result).toEqual("Top secret document")
     })
     afterEach(async function(){
         sessionStorage.clear()

@@ -44,12 +44,20 @@ class MedBlocks {
                     },
                 }
             )
-            
-            this.tx.createIndex({
-                index: {
-                    fields: ["hash","type","to"]
+
+            this.activity.createIndex(
+                {
+                    index: {
+                        fields: [
+                            "email",
+                            "type",
+                            "time"
+                        ]
+                    },
+                    name: "emailTypeTime",
+                    ddoc: "emailTypeTime"
                 }
-            })
+            )
             // Set up remote replications
             if (replicate){
                 this._tx_replicator = this.tx.replicate.to(this.remoteTx, {live:true, retry:true}
@@ -92,7 +100,12 @@ class MedBlocks {
     }
 
     get privateKey() {
-        return this.keyring.privateKeys.getForAddress(this.user)[0]
+        // If multiple privatekeys found, raise Error
+        var keys = this.keyring.privateKeys.getForAddress(this.user)
+        if (keys.length>1) {
+            console.warn("Found multiple private keys for user. Falling back to first in keyring")
+        }
+        return keys[0]
     }
 
     get publicKey() {
@@ -115,7 +128,7 @@ class MedBlocks {
                 curve: 'ed25519'
             }
         )
-        return privateKeyArmored
+        return {privateKeyArmored:privateKeyArmored, revocationCertificate:revocationCertificate}
     }
 
     async exportKey(email){
@@ -136,6 +149,7 @@ class MedBlocks {
 
     async registerPrivateKey(privateKey){
         var publicKey = await this.importKey(privateKey)
+        // Check for existing register data and throw warning about revocation certificate
         var data = {
             "type": "register",
             "email": await this.getEmailFromKey(privateKey),
@@ -149,10 +163,24 @@ class MedBlocks {
         return privateKey
     }
 
+    async revoke(email, revocationCertificate){
+        var data = {
+            "type": "revoke",
+            "email": email,
+            "host": this.medblocksUrl,
+            "certificate": revocationCertificate,
+            "time": new Date().getTime()
+        }
+        r = await this.activity.post(
+            data
+        )
+        return r
+    }
+
     async register(email){
-        var privateKey = await this.generateKey(email)
-        privateKey = await this.registerPrivateKey(privateKey)
-        return privateKey
+        var {privateKeyArmored, revocationCertificate} = await this.generateKey(email)
+        privateKeyArmored = await this.registerPrivateKey(privateKeyArmored)
+        return {privateKeyArmored:privateKeyArmored, revocationCertificate: revocationCertificate}
     }
 
     async login(email){
@@ -324,14 +352,33 @@ class MedBlocks {
 
 
     async permit(hash, to) {
-        accessKey = await this.getAccessKey(hash)
-        sessionKey = await this.decryptAccessKey(accessKey)
+        var accessKey = await this.getAccessKey(hash)
+        var sessionKey = await this.decryptAccessKey(accessKey)
         
         //TODO Search for public key from email
-        //TODO Convert armored publicKey to key object 
-        throw new Error("Not implemented fully")
-        var publickey
-        encryptedKey = await this.encryptSessionKey(sessionKey, publickey)
+        // Search for revocation certificates on same email
+        
+        //TODO Convert armored publicKey to key object
+        var selector = {
+            selector:{
+                email:to,
+                type:"register"
+            }
+        }
+        if (this.remoteActivity) {
+            var result = await this.remoteActivity.find(selector)
+        }
+        else {
+            var result = await this.activity.find(selector)
+        }
+        var publicKeys = result.docs.map(doc=>doc["publickey"])
+        if (publicKeys.length > 1){
+            console.warn("Multiple public keys found for email. Falling back to earliest non-revoked key")
+        }
+        // Revoked key logic here
+        var publicKey = publicKeys[0]
+        publicKey = (await openpgp.key.readArmored(publicKey)).keys[0]
+        var encryptedKey = await this.encryptSessionKey(sessionKey, publicKey)
         var id = await this.calculateStringHash(encryptedKey.data)
         await this.tx.put({
             "_id": id,
