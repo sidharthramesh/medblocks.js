@@ -5,8 +5,8 @@ module.exports = function(config) {
       client: {
         jasmine: {
           random: true,
-          seed: '48978',
-          timeoutInterval: 1000
+          // seed: '48978',
+          timeoutInterval: Infinity
         }
       },
 
@@ -67,21 +67,28 @@ module.exports = function(config) {
   
   
       // enable / disable watching file and executing tests whenever any file changes
-      autoWatch: false,
+      autoWatch: true,
   
-  
+      customLaunchers: {
+        ChromeDebugging: {
+          base: 'ChromeHeadless',
+          flags: [ '--remote-debugging-port=9333' ],
+          debug: true
+        }
+      },
+    
       // start these browsers
       // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-      browsers: ['ChromeHeadless'],
+      browsers: ['ChromeDebugging'],
   
   
       // Continuous Integration mode
       // if true, Karma captures browsers, runs the tests and exits
-      singleRun: true,
+      singleRun: false,
   
       // Concurrency level
       // how many browser should be started simultaneous
-      concurrency: 1
+      concurrency: Infinity
     })
   }
   

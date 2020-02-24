@@ -1,3 +1,28 @@
+async function clearStorage(){
+    await window.sessionStorage.clear()
+    await window.localStorage.clear()
+    function deleteDatabase(name) {
+        return new Promise(function (res, rej) {
+            var req = indexedDB.deleteDatabase(name.name);
+            req.onsuccess = function () {
+                // console.log("Deleted database successfully");
+                res();
+            };
+            req.onerror = function () {
+                // console.log("Couldn't delete database");
+                rej();
+            };
+            req.onblocked = function () {
+                // console.log("Couldn't delete database due to the operation being blocked");
+                rej();
+            };
+        })
+    }
+
+    await window.indexedDB.databases().then(a => {
+        return Promise.all(a.map(b => deleteDatabase(b)));
+    });
+}
 describe('Runtime basics', function() {
     
     it('should have webcrypto', async function(){
@@ -6,9 +31,9 @@ describe('Runtime basics', function() {
 })
 
 describe('Registration and Login Functions', function() {
+
     beforeEach(async function () {
         api = await new MedBlocks()
-        api.keyring.clear()
     })
     
     it('should generate keys', async function() {
@@ -37,19 +62,15 @@ describe('Registration and Login Functions', function() {
         expect(function(){console.log(api.privateKey.armor())}).toThrow()
         expect(api.email).toBeNull
     })
-    afterEach( async function(){
-        sessionStorage.clear()
-        localStorage.clear()
-        dbs = (await indexedDB.databases()).map(db=>db.name)
-        for (var i; i<dbs.length; i++){
-            indexedDB.deleteDatabase(dbs[i])}
+    afterEach(async function(){
+        await clearStorage();
     })
 })
 
 describe("Medblocks core: add, get, list", function(){
+
     beforeEach(async function(){
         api = await new MedBlocks()
-        await api.keyring.clear()
         await api.register("testuser@test.com")
         await api.login("testuser@test.com")
     })
@@ -72,16 +93,12 @@ describe("Medblocks core: add, get, list", function(){
     })
     
     afterEach(async function(){
-        sessionStorage.clear()
-        localStorage.clear()
-        dbs = (await indexedDB.databases()).map(db=>db.name)
-        for (var i; i<dbs.length; i++){
-            indexedDB.deleteDatabase(dbs[i])}
+        await clearStorage()
     })
 })
 
 describe('Medblocks core: permit', function(){
-    beforeEach(async function(){
+    beforeEach(async function(){sessionStorage.clear()
         api = await new MedBlocks()
         await api.register("user1@test.com")
         await api.register("user2@test.com")
@@ -111,10 +128,6 @@ describe('Medblocks core: permit', function(){
         expect(result).toEqual("Top secret document")
     })
     afterEach(async function(){
-        sessionStorage.clear()
-        localStorage.clear()
-        dbs = (await indexedDB.databases()).map(db=>db.name)
-        for (var i; i<dbs.length; i++){
-            indexedDB.deleteDatabase(dbs[i])}
+        await clearStorage()
     })
 })

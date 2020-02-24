@@ -19,7 +19,7 @@ class MedBlocks {
             }
             
             //Create indexes for faster query locally
-            this.tx.createIndex(
+            await Promise.all([this.tx.createIndex(
                 {
                     index:{
                         fields: [
@@ -31,7 +31,7 @@ class MedBlocks {
                         ddoc: "hashTypeToIndex"
                     },
                 }
-            )
+            ),
             this.tx.createIndex(
                 {
                     index:{
@@ -43,8 +43,7 @@ class MedBlocks {
                         ddoc: "toTypeIndex"
                     },
                 }
-            )
-
+            ),
             this.activity.createIndex(
                 {
                     index: {
@@ -57,7 +56,7 @@ class MedBlocks {
                     name: "emailTypeTime",
                     ddoc: "emailTypeTime"
                 }
-            )
+            )]);
             // Set up remote replications
             if (replicate){
                 this._tx_replicator = this.tx.replicate.to(this.remoteTx, {live:true, retry:true}
