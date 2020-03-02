@@ -1,6 +1,3 @@
-Open PGP.js Session Keys
-https://github.com/openpgpjs/openpgpjs/blob/master/test/general/openpgp.js#L1156
-
 - Gracefully handle offline state instead of spamming poll
-- Test GET from S3
 - Handle bytes type in add and get
+- Add tag field to transactions and search
