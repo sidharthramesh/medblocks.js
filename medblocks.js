@@ -1,64 +1,82 @@
 class MedBlocks {
-    constructor(medblocksUrl="localhost", replicate=false){
+    constructor(opts){
+        if (typeof opts == 'string') opts = {
+            sync: `${opts}:8000`,
+            s3: `${opts}:9000`,
+            couch: `${opts}:5984`,
+            replicate: true
+        }
+        if (typeof opts !== 'object') opts = {}
+        var defaults = {
+            sync: "localhost",
+            s3: "localhost",
+            couch:"localhost",
+            replicate: false
+        }
+        opts = Object.assign({}, defaults, opts)
+        this.opts = opts
+        openpgp.config.commentstring = "medblocks.org"
+        openpgp.config.versionstring = "Medblocks v1"
+        
         return (async () => {
-            openpgp.config.commentstring = "medblocks.org"
-            openpgp.config.versionstring = "Medblocks v1"
-            this.medblocksUrl = medblocksUrl
+            this.medblocksUrl = opts.medblocksUrl
             // Initialize Keyring
             this.keyring = new openpgp.Keyring()
-            await this.keyring.load();
+            await this.keyring.load()
             // Create local PouchDB database objects 
             this.blob = new PouchDB("data")
             this.tx = new PouchDB("tx")
             this.activity = new PouchDB("activity")
             // Create remote database objects
-            if (replicate){
-                this.remoteBlob = new PouchDB(`http://${this.medblocksUrl}:5984/data`)
-                this.remoteTx = new PouchDB(`http://${this.medblocksUrl}:5984/tx`)
-                this.remoteActivity = new PouchDB(`http://${this.medblocksUrl}:5984/activity`)
+            if (opts.replicate){
+                this.remoteBlob = new PouchDB(`http://${this.opts.couch}/data`, {skip_setup: true})
+                this.remoteTx = new PouchDB(`http://${this.opts.couch}/tx`, {skip_setup: true})
+                this.remoteActivity = new PouchDB(`http://${this.opts.couch}/activity`, {skip_setup: true})
             }
             
             //Create indexes for faster query locally
-            await Promise.all([this.tx.createIndex(
-                {
-                    index:{
-                        fields: [
-                            "hash",
-                            "type",
-                            "to"
-                        ],
-                        name: "hashTypeToIndex",
-                        ddoc: "hashTypeToIndex"
-                    },
-                }
-            ),
-            this.tx.createIndex(
-                {
-                    index:{
-                        fields: [
-                            "to",
-                            "type"
-                        ],
-                        name: "toTypeIndex",
-                        ddoc: "toTypeIndex"
-                    },
-                }
-            ),
-            this.activity.createIndex(
-                {
-                    index: {
-                        fields: [
-                            "email",
-                            "type",
-                            "time"
-                        ]
-                    },
-                    name: "emailTypeTime",
-                    ddoc: "emailTypeTime"
-                }
-            )]);
+            await Promise.all([
+                this.tx.createIndex(
+                    {
+                        index:{
+                            fields: [
+                                "hash",
+                                "type",
+                                "to"
+                            ],
+                            name: "hashTypeToIndex",
+                            ddoc: "hashTypeToIndex"
+                        },
+                    }
+                ),
+                this.tx.createIndex(
+                    {
+                        index:{
+                            fields: [
+                                "to",
+                                "type"
+                            ],
+                            name: "toTypeIndex",
+                            ddoc: "toTypeIndex"
+                        },
+                    }
+                ),
+                this.activity.createIndex(
+                    {
+                        index: {
+                            fields: [
+                                "email",
+                                "type",
+                                "time"
+                            ]
+                        },
+                        name: "emailTypeTime",
+                        ddoc: "emailTypeTime"
+                    }
+                )
+            ])
             // Set up remote replications
-            if (replicate){
+            if (opts.replicate){
                 this._tx_replicator = this.tx.replicate.to(this.remoteTx, {live:true, retry:true}
                     ).on('paused', function(err){
                         return err
@@ -152,7 +170,7 @@ class MedBlocks {
         var data = {
             "type": "register",
             "email": await this.getEmailFromKey(privateKey),
-            "host": this.medblocksUrl,
+            "host": this.opts.sync,
             "publickey": publicKey,
             "time": new Date().getTime()
         }
@@ -166,7 +184,7 @@ class MedBlocks {
         var data = {
             "type": "revoke",
             "email": email,
-            "host": this.medblocksUrl,
+            "host": this.opts.sync,
             "certificate": revocationCertificate,
             "time": new Date().getTime()
         }
@@ -187,7 +205,7 @@ class MedBlocks {
         var activityData = {
             "type": "login",
             "email": email,
-            "host": this.medblocksUrl,
+            "host": this.opts.sync,
             "publickey": this.publicKey.armor(),
             "time": new Date().getTime()
         }
@@ -293,7 +311,7 @@ class MedBlocks {
             (err) => {
                 if (err.status == 404) {
                     //Implement s3 object storage
-                    var url = `http://${this.medblocksUrl}:9000/blob/${hash}`
+                    var url = `http://${this.opts.s3}/blob/${hash}`
                     return fetch(url).then(r=>r.body).then(stream=>stream.getReader().read()).then(read=>read.value)
                 }
                 else {
@@ -356,8 +374,6 @@ class MedBlocks {
         
         //TODO Search for public key from email
         // Search for revocation certificates on same email
-        
-        //TODO Convert armored publicKey to key object
         var selector = {
             selector:{
                 email:to,

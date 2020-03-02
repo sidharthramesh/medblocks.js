@@ -1,5 +1,3 @@
-const jasmineSeedReporter = require("./seedreporter.js")
-
 module.exports = function(config) {
     config.set({
       client: {
@@ -25,7 +23,8 @@ module.exports = function(config) {
         "dist/pouchdb.min.js",
         "dist/pouchdb.find.js",
         "medblocks.js",
-        "test.js",
+        "tests/helpers.js",
+        "tests/*"
       ],
   
   
@@ -46,10 +45,9 @@ module.exports = function(config) {
       // available reporters: https://npmjs.org/browse/keyword/karma-reporter
       plugins: [
         "karma-*",
-        jasmineSeedReporter
       ],
     
-      reporters: ['spec', "jasmine-seed"],
+      reporters: ['spec'],
 
     
   
@@ -67,12 +65,13 @@ module.exports = function(config) {
   
   
       // enable / disable watching file and executing tests whenever any file changes
-      autoWatch: true,
+      autoWatch: false,
   
       customLaunchers: {
         ChromeDebugging: {
           base: 'ChromeHeadless',
-          flags: [ '--remote-debugging-port=9333' ],
+          flags: [ '--remote-debugging-port=9333', '--web-security=false',
+          '--ignore-ssl-errors=true'],
           debug: true
         }
       },
@@ -84,7 +83,7 @@ module.exports = function(config) {
   
       // Continuous Integration mode
       // if true, Karma captures browsers, runs the tests and exits
-      singleRun: false,
+      singleRun: true,
   
       // Concurrency level
       // how many browser should be started simultaneous

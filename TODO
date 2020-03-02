@@ -4,8 +4,3 @@ https://github.com/openpgpjs/openpgpjs/blob/master/test/general/openpgp.js#L1156
 - Gracefully handle offline state instead of spamming poll
 - Test GET from S3
 - Handle bytes type in add and get
-
- Issues:
- Happens with randomized code '4321'
-    - https://github.com/openpgpjs/openpgpjs/issues/752
-    - https://github.com/openpgpjs/openpgpjs/issues/429
