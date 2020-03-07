@@ -51,14 +51,14 @@ describe("Medblocks core: add, get, list", function(){
     })
 
     it('should add string and get it back', async function(){
-        hash = await api.add("Hello world!")
+        hash = await api.add("Hello world!", "test")
         result = await api.get(hash)
         expect(result).toEqual("Hello world!")
     }
     )
     it('should list added documents', async function() {
-        doc1 = await api.add("Document1")
-        doc2 = await api.add("Document2")
+        doc1 = await api.add("Document1", "test")
+        doc2 = await api.add("Document2", "test")
         list = await api.list("testuser@test.com")
         result = new Set([])
         for (var i=0; i<list.length; i++) {
@@ -80,7 +80,7 @@ describe('Medblocks core: permit', function(){
     })
     it('should block access to user without permission',async function(){
         await api.login("user1@test.com")
-        documentHash = await api.add("Top secret document")
+        documentHash = await api.add("Top secret document", "test")
         api.login("user2@test.com")
         try {
             await api.get(documentHash)
@@ -92,7 +92,7 @@ describe('Medblocks core: permit', function(){
     })
     it('should allow access after permit', async function() {
         await api.login("user1@test.com")
-        documentHash = await api.add("Top secret document")
+        documentHash = await api.add("Top secret document", "test")
         await api.permit(documentHash, "user2@test.com")
         api.login("user2@test.com")
         try {
@@ -101,6 +101,16 @@ describe('Medblocks core: permit', function(){
             errorMessage = error.message;
         }
         expect(result).toEqual("Top secret document")
+    })
+    it('should list by tag', async function(){
+        await api.login("user1@test.com")
+        hash1 = await api.add("Hello there", "test1")
+        hash2 = await api.add("Nice to see you here", "test1")
+        hash3 = await api.add("This should not show up", "test2")
+        expected_set = new Set([hash1, hash2])
+        result_set = new Set(await api.list("user1@test.com", "test1"))
+        expect(result_set).toEqual(expected_set)
+        
     })
     afterEach(async function(){
         await clearStorage()

@@ -37,7 +37,7 @@ describe('Integtaion Tests', function() {
             })
             keys = await api.register("tornadoalert@gmail.com")
             await api.login("tornadoalert@gmail.com")
-            hash = await api.add("Testing string")
+            hash = await api.add("Testing string", "test")
             await new Promise(resolve => setTimeout(resolve, 2000))
             r = await fetch(`http://${api.opts.s3}/blob/${hash}`)
             expect(r.status).toEqual(200)
@@ -65,7 +65,7 @@ describe('Integtaion Tests', function() {
             await api.login("tornadoalert@gmail.com")
             var hash
             for (var i=0; i<100; i++) {
-                hash = await api.add("Testing string")
+                hash = await api.add("Testing string", "test")
             }
             await new Promise(resolve => setTimeout(resolve, 1000))
             r = await fetch(`http://${api.opts.s3}/blob/${hash}`)

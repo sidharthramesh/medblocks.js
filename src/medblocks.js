@@ -1,3 +1,8 @@
+import PouchDB from 'pouchdb';
+import PouchDBFind from 'pouchdb-find';
+import * as openpgp from 'openpgp';
+PouchDB.plugin(PouchDBFind);
+
 class MedBlocks {
     constructor(opts){
         if (typeof opts == 'string') opts = {
@@ -54,10 +59,11 @@ class MedBlocks {
                         index:{
                             fields: [
                                 "to",
-                                "type"
+                                "type",
+                                "tag"
                             ],
-                            name: "toTypeIndex",
-                            ddoc: "toTypeIndex"
+                            name: "toTypeTagIndex",
+                            ddoc: "toTypeTagIndex"
                         },
                     }
                 ),
@@ -225,22 +231,17 @@ class MedBlocks {
         })
         return accessKey
     }
-    async add(data, type) {
+    async add(data, tag) {
+        if (!data) {
+            throw new Error("Add requires data")
+        }
+        if (!tag) {
+            throw new Error("Add requires tag")
+        }
         var email = this.user
         //encrypt
-        var autotype
-        if (typeof data == "string") {
-            var encodedData = openpgp.message.fromText(data)
-            autotype = "text"
-        }
-        if (typeof data == "object"){
-            var encodedData = openpgp.message.fromBinary(data)
-            autotype = "binary"
-        }
-        if (!type) {
-            type = autotype
-        }
-        
+        var encodedData = openpgp.message.fromText(data)
+
         var aes_key = await openpgp.crypto.generateSessionKey('aes256')
         var encObj = {
             message: encodedData,
@@ -259,13 +260,13 @@ class MedBlocks {
 
         //Add file to blob
         var dataView = new DataView(bytesArray.buffer)
-        var blob = new Blob([dataView],{type: type})
+        var blob = new Blob([dataView],{type: "application/medblocks"})
         await this.blob.put(
             {
                 "_id": hash,
                 "_attachments": {
                     "file": {
-                        content_type: type,
+                        content_type: "application/medblocks",
                         data: blob
                 }
             }
@@ -277,7 +278,8 @@ class MedBlocks {
             "hash": hash,
             "type": "permission",
             "to": email,
-            "key": accessKey.data
+            "key": accessKey.data,
+            "tag": tag
         })
     
         return hash
@@ -302,8 +304,28 @@ class MedBlocks {
         }
         return result.docs[0]["key"]
     }
+    async getTag(hash) {
+        var selector = {
+            selector:{
+                hash:hash, 
+                type:"permission",
+                to:this.user
+            }
+        }
+        var result = await this.tx.find(selector)
+        if (result.docs.length == 0){
+            //Search remote db
+            if (this.remoteTx){
+                result = await this.remoteTx.find(selector)
+            }
+            if (result.docs.length == 0) {
+                throw new Error("No permission key found for user")
+            }
+        }
+        return result.docs[0]["tag"]
+    }
     async getBlob(hash){
-        var bytes = await api.blob.getAttachment(hash, "file")
+        var bytes = await this.blob.getAttachment(hash, "file")
         .then(
             async blob=>new Uint8Array(await blob.arrayBuffer())
         )
@@ -351,12 +373,24 @@ class MedBlocks {
         return message.data
     }
     
-    async list(email) {
-        var selector = {
-            selector:{
-                to:email,
-                type:"permission"
-            }
+    async list(email, tag) {
+        var selector
+        if (!tag) {
+            selector = {
+                selector:{
+                    to:email,
+                    type:"permission",
+                }
+            } 
+        }
+        else {
+            selector = {
+                selector:{
+                    to:email,
+                    type:"permission",
+                    tag: tag
+                }
+        } 
         }
         if (this.remoteTx){
             var result = await this.remoteTx.find(selector)
@@ -395,18 +429,17 @@ class MedBlocks {
         publicKey = (await openpgp.key.readArmored(publicKey)).keys[0]
         var encryptedKey = await this.encryptSessionKey(sessionKey, publicKey)
         var id = await this.calculateStringHash(encryptedKey.data)
+        var tag = await this.getTag(hash)
         await this.tx.put({
             "_id": id,
             "hash": hash,
             "type": "permission",
             "to": to,
-            "key": encryptedKey.data
+            "key": encryptedKey.data,
+            "tag": tag
         })
         return id
     }
-
-    
-
-    
 }
-window.MedBlocks = MedBlocks
+
+export default MedBlocks
