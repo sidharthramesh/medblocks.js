@@ -29,6 +29,6 @@
     "karma-jasmine": "^3.1.1",
     "karma-spec-reporter": "0.0.32",
     "webpack": "^5.0.0-beta.13",
-    "webpack-cli": "^3.3.11"
+    "webpack-cli": "^5.0.1"
   }
 }
